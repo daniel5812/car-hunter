@@ -1,0 +1,36 @@
+name: Car hunter scan
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - car_hunter/**
+      - tests/**
+      - .github/workflows/scan.yml
+      - search_profile.json
+
+permissions:
+  contents: read
+
+concurrency:
+  group: car-hunter-scan
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - run: python -m unittest discover -s tests -v
+      - name: Real HTTP ads to Neon and DeepSeek; one Telegram demonstration
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python -m car_hunter scan --source zehcan --limit 9 --analyze --notify --demo-notification

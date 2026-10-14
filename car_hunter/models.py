@@ -19,15 +19,18 @@ class Listing:
     location: str | None = None
     seller_type: str | None = None
     description: str | None = None
+    published_at: str | None = None
+    updated_at: str | None = None
     contact: dict = field(default_factory=dict)
     evidence: dict = field(default_factory=dict)
 
     def __post_init__(self):
         hosts = {"yad2": {"www.yad2.co.il", "yad2.co.il"},
-                 "homeless": {"www.homeless.co.il", "homeless.co.il", "m.homeless.co.il"}}
+                 "homeless": {"www.homeless.co.il", "homeless.co.il", "m.homeless.co.il"},
+                 "zehcan": {"cars.zehcan.co.il"}}
         parsed = urlparse(self.url)
         if self.source not in hosts or parsed.hostname not in hosts[self.source] or parsed.scheme != "https":
-            raise ValueError("Listing source and HTTPS URL must match Yad2 or Homeless")
+            raise ValueError("Listing source and HTTPS URL must match a supported source")
         if not isinstance(self.ad_id, str) or not self.ad_id.strip():
             raise ValueError("Listing must have its actual source ID")
         for name in ("year", "purchase_price_ils", "mileage_km"):
@@ -44,6 +47,9 @@ class Listing:
             raise ValueError("contact and evidence must be objects")
         if self.purchase_price_ils == 0:
             raise ValueError("Zero is not a verified full purchase price; use null")
+        for value in (self.published_at, self.updated_at):
+            if value is not None:
+                date.fromisoformat(value)
 
     def to_dict(self):
         return asdict(self)
