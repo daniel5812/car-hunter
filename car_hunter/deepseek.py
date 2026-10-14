@@ -18,11 +18,57 @@ Budget is a target of 50000 ILS; there is no agreed hard maximum. Flag excess,
 do not invent one. 2017+ is a preference; no mileage ceiling exists.
 Dates belong to the publisher; crawl date is not publication/update date.
 Score only the observed personal fit, not invented technical quality.
+You must select ONLY from the provided observation_ids and question_ids.
 Return {"score": integer 0..100, "status": "candidate"|"needs_review"|"reject",
-"summary_he": concise Hebrew summary of observed fit, "tradeoffs_he": array of
-Hebrew strings about observed compromises, "questions_he": array of missing facts
-to verify}. Explain uncertainty. Do not invent phone numbers or URLs.
+"tradeoff_ids": array of observation IDs, "question_ids": array of question IDs}.
+Do not write free-text factual assertions. Explain your tradeoffs by selecting IDs
+of observed advantages, disadvantages and uncertainties; select relevant questions.
+Year 2017 is a PREFERENCE, never a hard minimum. Vehicle ownership does not imply
+seller type. Score is provisional because exact-variant evidence is not provided.
 """
+
+
+def grounded_options(listing):
+    observations = {}
+    questions = {"technical": "יש לאמת אמינות, ביצועים, צריכת דלק וגודל לפי הגרסה המדויקת ומקורות."}
+    if listing.purchase_price_ils is None:
+        observations["price_unknown"] = "מחיר רכישה מלא לא צוין."
+        questions["price"] = "מהו מחיר הרכישה המלא?"
+    elif listing.over_budget:
+        observations["over_budget"] = f"המחיר חורג ב־{listing.purchase_price_ils-50000:,} ₪ מיעד 50,000 ₪; לא נקבעה תקרת חריגה."
+    else:
+        observations["within_budget"] = f"מחיר הרכישה {listing.purchase_price_ils:,} ₪ בתוך יעד התקציב."
+    if listing.year is None:
+        observations["year_unknown"] = "שנתון לא צוין."
+        questions["year"] = "מהו שנתון הרכב?"
+    elif listing.year < 2017:
+        observations["older_year"] = f"שנתון {listing.year} נמוך מהשנתון המועדף 2017; זו העדפה ולא תנאי סף."
+    else:
+        observations["preferred_year"] = f"שנתון {listing.year} עומד בהעדפת 2017 ומעלה."
+    if listing.transmission is None:
+        observations["transmission_unknown"] = "הגיר לא צוין; אין התאמה מאושרת לדרישת האוטומט."
+        questions["transmission"] = "יש לאמת שהגיר אוטומטי."
+    else:
+        observations["transmission"] = f"גיר מוצהר: {listing.transmission}."
+    if listing.mileage_km is None:
+        observations["mileage_unknown"] = "קילומטראז׳ לא צוין."
+        questions["mileage"] = "מהו הקילומטראז׳ המדויק?"
+    else:
+        observations["mileage"] = f"קילומטראז׳ מוצהר: {listing.mileage_km:,} ק״מ; לא נקבעה תקרה קשיחה."
+    if listing.seller_type is None:
+        observations["seller_unknown"] = "סוג המוכר לא צוין; בעלות פרטית אינה הוכחה למוכר פרטי."
+        questions["seller"] = "האם זה מוכר פרטי או סוכנות?"
+    else:
+        observations["seller"] = f"סוג מוכר מוצהר: {listing.seller_type}; הצהרת המוכר לא אומתה."
+    if listing.location is None:
+        observations["location_unknown"] = "מיקום לא צוין."
+        questions["location"] = "היכן ניתן לראות את הרכב?"
+    else:
+        observations["location"] = f"מיקום מוצהר: {listing.location}; העדפה לבאר שבע והדרום."
+    if listing.evidence.get("conflicts"):
+        observations["source_conflict"] = "במודעה נמצאו נתונים סותרים; נדרש בירור מול המוכר."
+        questions["source_conflict"] = "יש לברר את סתירות הנתונים המפורטות במודעה."
+    return observations, questions
 
 
 def input_payload(listing):
@@ -34,7 +80,9 @@ def input_payload(listing):
     if data.get("description"):
         data["description"] = re.sub(r"(?:\+972[-\s]?|0)(?:5\d|[23489])[-\s]?\d{3}[-\s]?\d{4}", "[contact omitted]", data["description"])
     profile = json.loads((ROOT / "search_profile.json").read_text(encoding="utf-8"))
-    return {"listing": data, "profile": profile, "prompt_version": 1}
+    observations, questions = grounded_options(listing)
+    return {"listing": data, "profile": profile, "prompt_version": 2,
+            "observation_ids": observations, "question_ids": questions}
 
 
 def input_digest(listing):
@@ -62,6 +110,22 @@ def validate(data, listing):
     return data
 
 
+def validate_choices(raw, listing):
+    observations, questions = grounded_options(listing)
+    for key, options in (("tradeoff_ids", observations), ("question_ids", questions)):
+        if not isinstance(raw.get(key), list) or not all(isinstance(x, str) and x in options for x in raw[key]):
+            raise ValueError("AI selected an unsupported fact or question")
+    tradeoffs = [observations[x] for x in dict.fromkeys(raw["tradeoff_ids"])]
+    missing = [questions[x] for x in dict.fromkeys(raw["question_ids"])]
+    # Even an overly confident model cannot omit essential unknowns from the output.
+    for key in ("transmission", "technical", "seller", "source_conflict"):
+        if key in questions and questions[key] not in missing:
+            missing.append(questions[key])
+    summary = "הערכת התאמה ראשונית על סמך נתוני מודעה לא מאומתים."
+    return validate({"score": raw.get("score"), "status": raw.get("status"),
+                     "summary_he": summary, "tradeoffs_he": tradeoffs, "questions_he": missing}, listing)
+
+
 def assess(listing):
     model = os.getenv("DEEPSEEK_MODEL", "deepseek-flash")
     with httpx.Client(timeout=60) as client:
@@ -76,6 +140,6 @@ def assess(listing):
     body = response.json()
     if body["choices"][0].get("finish_reason") != "stop":
         raise ServiceError("DeepSeek response incomplete")
-    result = validate(json.loads(body["choices"][0]["message"]["content"]), listing)
+    result = validate_choices(json.loads(body["choices"][0]["message"]["content"]), listing)
     result.update(input_digest=input_digest(listing), model=model)
     return result

@@ -2,7 +2,7 @@ from pathlib import Path
 import unittest
 
 from car_hunter.zehcan import ad_links, parse_detail
-from car_hunter.deepseek import validate
+from car_hunter.deepseek import validate, validate_choices
 from car_hunter.pipeline import notification_allowed
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -101,6 +101,18 @@ class ZehcanTests(unittest.TestCase):
         self.assertEqual(item.variant, "קומפורט")
         self.assertIsNone(item.transmission)
         self.assertTrue(item.evidence["claims_unverified"])
+
+    def test_ai_cannot_introduce_unverified_reliability_claims(self):
+        with self.assertRaises(ValueError):
+            validate_choices({"score": 90, "status": "candidate", "tradeoff_ids": ["reliable_engine"],
+                              "question_ids": []}, self.listing())
+
+    def test_ai_explanation_is_grounded_and_preserves_unknown_seller(self):
+        result = validate_choices({"score": 55, "status": "candidate", "tradeoff_ids": ["older_year", "seller_unknown"],
+                                   "question_ids": []}, self.listing())
+        self.assertEqual(result["status"], "needs_review")
+        self.assertIn("העדפה ולא תנאי סף", result["tradeoffs_he"][0])
+        self.assertTrue(any("סוכנות" in text for text in result["questions_he"]))
 
 
 if __name__ == "__main__":
