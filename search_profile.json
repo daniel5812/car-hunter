@@ -1,0 +1,18 @@
+{
+  "budget_target_ils": 50000,
+  "budget_hard_max_ils": null,
+  "transmission_required": "automatic",
+  "preferred_year_min": 2017,
+  "mileage_hard_max_km": null,
+  "prefer_low_mileage": true,
+  "priorities": ["reliability", "performance", "fuel_economy"],
+  "reference_car": {"manufacturer": "Mazda", "model": "2 Demio", "year": 2016, "engine_liters": 1.5, "horsepower": 112},
+  "max_size_reference": "Mazda 3",
+  "turbo_1_0_acceptable_if_balanced": true,
+  "preferred_locations": ["באר שבע", "דרום"],
+  "strongly_prefer_private_seller": true,
+  "dealer_only_for_exceptionally_good_offer": true,
+  "driving": ["urban", "intercity"],
+  "annual_km_range": [10000, 20000],
+  "variant_facts_require_cited_sources": true
+}
