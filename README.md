@@ -1,5 +1,7 @@
 # car-hunter
 
+**הסריקה כבויה לבקשת המשתמש.** אמינות המקורות עדיין לא הוכחה. אין תזמון או הפעלה בעקבות push; ה־workflow מושבת ב־GitHub וה־job חסום גם להפעלה ידנית. הפעלה מחדש דורשת אישור מפורש לאחר פתרון בעיית המקורות.
+
 בוט Python אישי למציאת רכבים בישראל, המיועד לריצה עצמאית ב־GitHub Actions.
 אין צורך במחשב מקומי דלוק, סשן דפדפן או CAPTCHA ידני.
 
@@ -51,9 +53,9 @@ DeepSeek מעריך התאמה מתוך עובדות מפורשות בלבד, ע
 ## GitHub Actions
 
 Secrets נדרשים: DATABASE_URL, DEEPSEEK_API_KEY, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID.
-Car hunter scan רץ על Ubuntu של GitHub. concurrency עם cancel-in-progress: false
+Car hunter scan מיועד ל־Ubuntu של GitHub, אך מושבת כרגע. concurrency עם cancel-in-progress: false
 מונע workflows חופפים. נעילת Postgres נוספת מגינה על השמירה/דירוג/התראות.
-התזמון הוא כל שעתיים, בדקה 17 לפי UTC; GitHub עשוי לעכב ריצה מתוזמנת.
+התזמון כל שעתיים הוסר. הסריקה אינה מופעלת כרגע.
 Source audit הוא כלי בדיקה נפרד ללא Secrets וללא תזמון שוטף.
 
 מועד איסוף נשמר ב־first_seen/last_seen ואינו תאריך פרסום או עדכון.

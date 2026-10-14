@@ -1,5 +1,7 @@
 # car-hunter
 
+- USER HOLD (2026-10-14): all production scanning is paused until source reliability is resolved and the user explicitly authorizes reactivation. Do not enable the GitHub workflow, schedule, push triggers, scan job, or live notifications during this hold. Read-only source research and offline tests remain allowed.
+
 - Keep this a small single-user Python CLI. No server, Docker or frontend.
 - Production must run unattended in GitHub Actions. No local computer dependency, manually renewed session, manual CAPTCHA or stealth bypass. Prove source collection on a GitHub-hosted runner before enabling it.
 - Check source access terms and robots. Focus is excluded because its cloud-fetched terms explicitly prohibit automated collection; ad was not selected because the first audited sample was stale. Zehcan has no discovered terms link and its robots endpoint returns HTML, which is not an explicit grant of permission.
