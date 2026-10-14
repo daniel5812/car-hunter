@@ -41,10 +41,10 @@ def notification_allowed(listing, assessment, min_score=60):
 def run(limit=9, analyze=False, notify=False, max_notifications=3, demo=False):
     if (notify or demo) and not analyze:
         raise ValueError("Notifications require --analyze")
-    listings = collect(limit)
+    listings, collection_failures = collect(limit)
     listings.sort(key=lambda item: (item.over_budget is True, -(item.year or 0)))
     counts = {"collected": len(listings), "inserted": 0, "updated": 0, "analyzed": 0,
-              "cached": 0, "notified": 0, "failed": 0}
+              "cached": 0, "notified": 0, "failed": collection_failures}
     with db.connect() as conn:
         db.init(conn)
         # Session lock also protects against scans started outside GitHub Actions.

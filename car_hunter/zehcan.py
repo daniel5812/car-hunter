@@ -1,5 +1,6 @@
 """HTTP-only adapter derived from GitHub-hosted captures, 2026-10-14."""
 import hashlib
+from pathlib import Path
 import re
 import time
 from datetime import datetime
@@ -15,7 +16,7 @@ from .config import ServiceError
 ROOT_URL = "https://cars.zehcan.co.il/"
 LIST_URL = ROOT_URL + "ads-cars/"
 UA = "car-hunter/0.1 (personal car search)"
-AD_PATH = re.compile(r"^/ads-cars/[^/]+/(\d+)/?$")
+AD_PATH = re.compile(r"^/ads-cars/(?!page/)[^/]+/(\d+)/?$")
 
 
 def ad_links(html):
@@ -54,7 +55,8 @@ def parse_detail(html, url):
         raise ValueError("Verified article structure missing (blocked or changed)")
     raw_price = label_value(article, "מחיר:")
     # Only the explicit purchase-price field, never financing banners or related ads.
-    price = int(raw_price.replace(",", "")) if raw_price and re.fullmatch(r"[\d,]+", raw_price) else None
+    price_match = re.fullmatch(r"([\d,]+)\s*₪?", raw_price or "")
+    price = int(price_match[1].replace(",", "")) if price_match else None
     raw_year = label_value(article, "שנה:")
     year = int(raw_year) if raw_year and re.fullmatch(r"\d{4}", raw_year) else None
     date_node = article.select_one(".article-like-comment-date")
@@ -97,6 +99,7 @@ def parse_detail(html, url):
 
 def collect(limit=9):
     listings = []
+    failures = 0
     with httpx.Client(timeout=30, follow_redirects=True, headers={"User-Agent": UA}) as client:
         robots = client.get(ROOT_URL + "robots.txt")
         rp = RobotFileParser()
@@ -131,12 +134,17 @@ def collect(limit=9):
                     raise RuntimeError(f"detail HTTP {response.status_code}")
                 listing = parse_detail(response.text, url)
                 listings.append(listing)
+                capture = re.sub(r"(?:\+972[-\s]?|0)(?:5\d|[23489])[-\s]?\d{3}[-\s]?\d{4}", "[phone omitted]", response.text)
+                evidence_dir = Path("artifacts/zehcan")
+                evidence_dir.mkdir(parents=True, exist_ok=True)
+                (evidence_dir / f"{listing.ad_id}.html").write_text(capture, encoding="utf-8")
                 # These are public ad facts, but phone numbers and description are not logged.
                 print(f"COLLECT zehcan/{listing.ad_id}: price={listing.purchase_price_ils} year={listing.year} "
                       f"mileage={listing.mileage_km} location={listing.location} published={listing.published_at} "
                       f"updated={listing.updated_at} seller={listing.seller_type} phone={bool(listing.contact)} url={listing.url}", flush=True)
             except Exception as exc:
+                failures += 1
                 print(f"COLLECT detail failed: {url} ({type(exc).__name__})", flush=True)
         if not listings:
             raise ServiceError("No details successfully extracted")
-    return listings
+    return listings, failures

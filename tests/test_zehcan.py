@@ -49,6 +49,15 @@ class ZehcanTests(unittest.TestCase):
         item = parse_detail(html, "https://cars.zehcan.co.il/ads-cars/Kia/1646")
         self.assertIsNone(item.purchase_price_ils)
 
+    def test_price_with_currency_is_full_purchase_price(self):
+        html = (FIXTURES / "zehcan-1646.html").read_text(encoding="utf-8")
+        html = html.replace('מחיר:</span> 20,000.', 'מחיר:</span> 20,000 ₪.')
+        item = parse_detail(html, "https://cars.zehcan.co.il/ads-cars/Kia/1646")
+        self.assertEqual(item.purchase_price_ils, 20000)
+
+    def test_pagination_is_not_an_ad(self):
+        self.assertEqual(ad_links('<a href="/ads-cars/page/1">1</a>'), [])
+
     def test_no_source_date_never_uses_crawl_date(self):
         html = (FIXTURES / "zehcan-1646.html").read_text(encoding="utf-8")
         html = html.replace('פורסם בתאריך: 11/10/2026', 'תאריך אינו זמין')

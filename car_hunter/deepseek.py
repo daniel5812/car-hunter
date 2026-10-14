@@ -50,12 +50,12 @@ def validate(data, listing):
         if not isinstance(data.get(name), list) or not all(isinstance(x, str) for x in data[name]):
             raise ValueError("Invalid AI explanation")
     # The model cannot overrule the explicit automatic-only requirement.
-    if listing.transmission is None:
+    if listing.transmission is None and data["status"] != "reject":
         data["status"] = "needs_review"
         question = "יש לאמת שהגיר אוטומטי; המודעה אינה מציינת זאת."
         if question not in data["questions_he"]:
             data["questions_he"].insert(0, question)
-    elif listing.transmission not in {"automatic", "אוטומטית", "אוטומטי"}:
+    elif listing.transmission is not None and listing.transmission not in {"automatic", "אוטומטית", "אוטומטי"}:
         data["status"] = "reject"
     return data
 
