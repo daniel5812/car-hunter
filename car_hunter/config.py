@@ -6,6 +6,10 @@ from dotenv import load_dotenv
 ROOT = Path(__file__).resolve().parent.parent
 
 
+class ServiceError(RuntimeError):
+    """Only controlled diagnostic messages, never a raw third-party exception."""
+
+
 def load_settings():
     load_dotenv(ROOT / ".env", override=False, encoding="utf-8-sig")
 

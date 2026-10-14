@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
 from . import db
+from .config import ServiceError
 from .deepseek import assess, input_digest
 from .telegram import send
 from .zehcan import collect
@@ -92,6 +93,8 @@ def run(limit=9, analyze=False, notify=False, max_notifications=3, demo=False):
                 except Exception as exc:
                     conn.rollback()
                     counts["failed"] += 1
+                    if isinstance(exc, ServiceError):
+                        print(f"SERVICE: {exc}", flush=True)
                     print(f"PIPELINE zehcan/{listing.ad_id}: failed ({type(exc).__name__}); secrets suppressed", flush=True)
         finally:
             conn.execute("SELECT pg_advisory_unlock(%s)", (587240915,))

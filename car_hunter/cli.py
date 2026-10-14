@@ -6,7 +6,7 @@ from pathlib import Path
 
 from . import db
 from .collect import SOURCES, probe
-from .config import load_settings
+from .config import ServiceError, load_settings
 from .models import Listing
 from .telegram import send
 
@@ -70,6 +70,8 @@ def main():
         return 0
     except Exception as exc:
         # Raw httpx/psycopg exceptions can contain tokens or connection details.
+        if isinstance(exc, ServiceError):
+            print(f"{args.command}: {exc}", file=sys.stderr)
         print(f"{args.command} failed ({type(exc).__name__}); check configuration/connectivity. Secrets suppressed.", file=sys.stderr)
         return 1
 

@@ -10,6 +10,7 @@ import httpx
 from bs4 import BeautifulSoup
 
 from .models import Listing
+from .config import ServiceError
 
 ROOT_URL = "https://cars.zehcan.co.il/"
 LIST_URL = ROOT_URL + "ads-cars/"
@@ -103,18 +104,23 @@ def collect(limit=9):
             rp.parse(robots.text.splitlines())
         elif robots.status_code == 404:
             rp.parse([])
+        elif robots.status_code == 200 and "<html" in robots.text.lower():
+            # This site's nonexistent text paths return its HTML homepage with 200.
+            # HTML is not a robots permission grant or a usable robots ruleset.
+            rp.parse([])
+            print("ACCESS Zehcan robots endpoint: HTML instead of rules; no usable directives (not explicit permission)", flush=True)
         else:
-            raise RuntimeError(f"Zehcan robots unavailable: HTTP {robots.status_code}")
+            raise ServiceError(f"Zehcan robots unavailable: HTTP {robots.status_code}")
         if not rp.can_fetch("car-hunter", LIST_URL):
-            raise RuntimeError("Zehcan robots disallows inventory")
+            raise ServiceError("Zehcan robots disallows inventory")
         pause = max(2, rp.crawl_delay("car-hunter") or 0)
         time.sleep(pause)
         response = client.get(LIST_URL)
         if response.status_code != 200:
-            raise RuntimeError(f"Zehcan inventory HTTP {response.status_code}")
+            raise ServiceError(f"Zehcan inventory HTTP {response.status_code}")
         links = ad_links(response.text)
         if not links:
-            raise RuntimeError("Zehcan inventory has no observed ad links; source may have changed")
+            raise ServiceError("Zehcan inventory has no observed ad links; source may have changed")
         for url in links[:limit]:
             try:
                 if not rp.can_fetch("car-hunter", url):
@@ -132,5 +138,5 @@ def collect(limit=9):
             except Exception as exc:
                 print(f"COLLECT detail failed: {url} ({type(exc).__name__})", flush=True)
         if not listings:
-            raise RuntimeError("No details successfully extracted")
+            raise ServiceError("No details successfully extracted")
     return listings
