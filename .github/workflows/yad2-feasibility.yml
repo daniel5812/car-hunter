@@ -1,0 +1,75 @@
+name: Yad2 access feasibility
+on:
+  push:
+    branches: [yad2-feasibility-20261014]
+    paths: [.github/workflows/yad2-feasibility.yml]
+permissions:
+  contents: read
+jobs:
+  access-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install 'httpx>=0.28,<1' 'beautifulsoup4>=4.13,<5'
+      - name: Check official access conditions and stop on prohibition
+        run: |
+          python - <<'PY'
+          import json, os, re
+          from datetime import datetime, timezone
+          from urllib.robotparser import RobotFileParser
+          import httpx
+          from bs4 import BeautifulSoup
+          report = {
+              "checked_at": datetime.now(timezone.utc).isoformat(),
+              "run_id": os.environ["GITHUB_RUN_ID"],
+              "runner": "GitHub-hosted ubuntu-latest",
+              "search_url": "https://www.yad2.co.il/vehicles/cars",
+              "terms_url": "https://www.2.yad2.co.il/eula",
+              "search_http": "not_attempted",
+              "playwright": "not_attempted",
+              "listing_html_and_structured_data": "not_requested",
+              "verified_listings": 0,
+              "second_collection_run": "not_started",
+          }
+          def finish(reason):
+              report["decision"] = "STOP"
+              report["reason"] = reason
+              print(json.dumps(report, ensure_ascii=False, indent=2))
+              with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:
+                  f.write("# Yad2 feasibility: STOP\n\n" + reason + "\n\n")
+                  f.write("```json\n" + json.dumps(report, ensure_ascii=False, indent=2) + "\n```\n")
+              raise SystemExit(0)
+          try:
+              with httpx.Client(timeout=30, follow_redirects=True,
+                                headers={"User-Agent": "car-hunter-feasibility/0.1"}) as client:
+                  robots = client.get("https://www.yad2.co.il/robots.txt")
+                  report["robots_http_status"] = robots.status_code
+                  if robots.status_code == 200 and "user-agent:" in robots.text.lower():
+                      rp = RobotFileParser()
+                      rp.parse(robots.text.splitlines())
+                      report["robots_search_allowed"] = rp.can_fetch("car-hunter-feasibility", report["search_url"])
+                  else:
+                      report["robots_search_allowed"] = None
+                  terms = client.get(report["terms_url"])
+                  report["terms_http_status"] = terms.status_code
+                  report["terms_final_url"] = str(terms.url)
+                  soup = BeautifulSoup(terms.text, "html.parser")
+                  text = re.sub(r"\s+", " ", soup.get_text(" ", strip=True))
+                  report["terms_title"] = soup.title.get_text(strip=True) if soup.title else None
+                  prohibition = "שלא לאסוף נתונים מהנכסים הדיגיטליים"
+                  report["explicit_automated_collection_prohibition"] = (
+                      prohibition in text and "scrapers" in text and "צפייה רגילה" in text
+                  )
+                  if report["explicit_automated_collection_prohibition"]:
+                      report["clause_marker"] = prohibition
+                      finish("Official terms prohibit automated data collection; ordinary viewing exception does not verify permission for an automated adapter. No inventory or browser requests made.")
+                  finish("Access terms could not be positively verified in this cloud run; no inventory requests made.")
+          except SystemExit:
+              raise
+          except Exception as exc:
+              report["error_type"] = type(exc).__name__
+              finish("Access check failed; no inventory requests made. Raw exceptions and credentials are not logged.")
+          PY
