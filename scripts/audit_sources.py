@@ -29,6 +29,11 @@ def main():
     with httpx.Client(timeout=30, follow_redirects=True, headers={"User-Agent": UA}) as client:
         for name, (url, pattern, terms_url) in SOURCES.items():
             report = {"source": name, "listing_url": url, "details": []}
+            if name == "focus":
+                report.update(terms_url=terms_url, policy="Excluded: cloud-fetched terms prohibit automated data collection; previous three-ad audit is documented in SOURCE_REPORT.md")
+                reports.append(report)
+                print(json.dumps(report, ensure_ascii=False), flush=True)
+                continue
             try:
                 root = f"https://{urlparse(url).netloc}/"
                 robots = client.get(urljoin(root, "robots.txt"))

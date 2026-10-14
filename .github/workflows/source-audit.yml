@@ -2,10 +2,6 @@ name: Source audit
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - scripts/audit_sources.py
-      - .github/workflows/source-audit.yml
 
 permissions:
   contents: read

@@ -75,6 +75,33 @@ class ZehcanTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             parse_detail('<html>challenge</html>', "https://cars.zehcan.co.il/ads-cars/Kia/1646")
 
+    def test_real_explicit_seller_fields_and_conflicting_price(self):
+        html = (FIXTURES / "zehcan-1652.html").read_text(encoding="utf-8")
+        item = parse_detail(html, "https://cars.zehcan.co.il/ads-cars/Hyundai/1652")
+        self.assertEqual(item.mileage_km, 145000)
+        self.assertEqual(item.transmission, "manual")
+        self.assertEqual(item.engine, "1100 בנזין")
+        self.assertEqual(item.location, "נאות מרדכי")
+        self.assertEqual(item.variant, "INSPIRE")
+        self.assertEqual(item.purchase_price_ils, 8000)
+        self.assertTrue(item.evidence["conflicts"])
+
+    def test_ev_range_is_not_mileage_and_brand_conflict_is_preserved(self):
+        html = (FIXTURES / "zehcan-1651.html").read_text(encoding="utf-8")
+        item = parse_detail(html, "https://cars.zehcan.co.il/ads-cars/MG/1651")
+        self.assertEqual(item.mileage_km, 95000)
+        self.assertEqual(item.purchase_price_ils, 89900)
+        self.assertEqual(item.location, "רמת גן")
+        self.assertTrue(item.evidence["conflicts"])
+
+    def test_explicit_not_a_dealer_is_a_seller_claim(self):
+        html = (FIXTURES / "zehcan-1654.html").read_text(encoding="utf-8")
+        item = parse_detail(html, "https://cars.zehcan.co.il/ads-cars/Mazda/1654")
+        self.assertEqual(item.seller_type, "private")
+        self.assertEqual(item.variant, "קומפורט")
+        self.assertIsNone(item.transmission)
+        self.assertTrue(item.evidence["claims_unverified"])
+
 
 if __name__ == "__main__":
     unittest.main()

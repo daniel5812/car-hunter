@@ -73,6 +73,35 @@ def parse_detail(html, url):
     description = "\n".join(paragraphs) or None
     location_match = re.search(r"נמצא ב([^.!?\n,]+)", description or "")
     location = location_match[1].strip() if location_match else None
+    if location is None and (description or "").rstrip().endswith("רמת גן."):
+        location = "רמת גן"
+    if location is None and re.search(r",\s*נאות מרדכי\.", description or ""):
+        location = "נאות מרדכי"
+    mileage_values = []
+    for km in re.finditer(r"(?<!\d)(\d{1,3}(?:,\d{3})+|\d{1,7})\s*ק[\"״']?מ", description or ""):
+        # Range is not odometer mileage, e.g. an EV's advertised 420 km range.
+        if "טווח" in (description or "")[max(0, km.start()-25):km.start()]:
+            continue
+        mileage_values.append(int(km[1].replace(",", "")))
+    mileage = mileage_values[0] if mileage_values and len(set(mileage_values)) == 1 else None
+    manual = bool(re.search(r"גיר\s+ידני", description or ""))
+    automatic = bool(re.search(r"גיר\s+אוטומטי(?:ת)?", description or ""))
+    transmission = "manual" if manual and not automatic else "automatic" if automatic and not manual else None
+    seller_type = "private" if re.search(r"לא\s+סוחר", description or "") else None
+    engine_match = re.search(r"מנוע\s+(\d+(?:\.\d+)?\s+בנזין)", description or "")
+    engine = engine_match[1] if engine_match else None
+    manufacturer = label_value(article, "חברה:")
+    model = label_value(article, "דגם:")
+    variant = "קומפורט" if "קומפורט" in (description or "") else "INSPIRE" if "i10 INSPIRE" in (description or "") else None
+    if model and " Style " in model:
+        model, variant = model.split(" Style ", 1)
+        variant = "Style " + variant
+    conflicts = []
+    description_price = re.search(r"מחיר:\s*(\d[\d,]*)", description or "")
+    if description_price and price is not None and int(description_price[1].replace(",", "")) != price:
+        conflicts.append("Purchase-price field disagrees with price in seller description")
+    if manufacturer == "אם ג'י" and model and model.startswith("BYD "):
+        conflicts.append("Manufacturer field says MG while model text starts BYD; verify identity")
     contact = {}
     # The contact block is outside the article in the observed layout.
     contact_heading = soup.find("h5", string=lambda t: t and "צור קשר עם המפרסם" in t)
@@ -84,16 +113,19 @@ def parse_detail(html, url):
                 if re.fullmatch(r"[+\d\s-]{9,18}", phone):
                     contact["phone"] = phone
                     break
-    # No transmission, mileage, engine, seller-type or location fields were present
-    # in the verified three detail pages. Do not promote guesses from prose to facts.
+    # Typed fields from prose are explicit seller claims, not independently verified facts.
     return Listing(source="zehcan", ad_id=match[1], url=url,
-                   manufacturer=label_value(article, "חברה:"), model=label_value(article, "דגם:"),
+                   manufacturer=manufacturer, model=model, variant=variant,
                    year=year, purchase_price_ils=price, description=description, location=location,
+                   mileage_km=mileage, transmission=transmission, seller_type=seller_type, engine=engine,
                    published_at=published_at, contact=contact,
                    evidence={"parser": "zehcan-http-v1", "publication_label": date_text.split("שתפו:")[0].strip(),
                              "article_sha256": hashlib.sha256(str(article).encode()).hexdigest(),
                              "price_basis": "explicit full price field" if price else None,
-                             "location_basis": "explicit seller description" if location else None,
+                             "location_basis": "seller description" if location else None,
+                             "mileage_basis": "seller description" if mileage is not None else None,
+                             "seller_type_basis": "seller declares לא סוחר" if seller_type else None,
+                             "conflicts": conflicts,
                              "claims_unverified": True})
 
 

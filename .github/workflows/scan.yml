@@ -1,6 +1,8 @@
 name: Car hunter scan
 
 on:
+  schedule:
+    - cron: '17 */2 * * *'
   workflow_dispatch:
   push:
     paths:
@@ -27,13 +29,13 @@ jobs:
           python-version: '3.12'
       - run: python -m pip install -e .
       - run: python -m unittest discover -s tests -v
-      - name: Real HTTP ads to Neon and DeepSeek; one Telegram demonstration
+      - name: Real HTTP ads to Neon, DeepSeek and eligible Telegram alerts
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python -m car_hunter scan --source zehcan --limit 9 --analyze --notify --demo-notification
+        run: python -m car_hunter scan --source zehcan --limit 9 --analyze --notify
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -1,6 +1,10 @@
 # car-hunter
 
 - Keep this a small single-user Python CLI. No server, Docker or frontend.
+- Production must run unattended in GitHub Actions. No local computer dependency, manually renewed session, manual CAPTCHA or stealth bypass. Prove source collection on a GitHub-hosted runner before enabling it.
+- Check source access terms and robots. Focus is excluded because its cloud-fetched terms explicitly prohibit automated collection; ad was not selected because the first audited sample was stale. Zehcan has no discovered terms link and its robots endpoint returns HTML, which is not an explicit grant of permission.
+- Do not confuse publisher publication/update/bump dates with first_seen/last_seen, crawl time, footer copyright dates or related content. Missing publisher dates stay null.
+- Field claims from seller prose must have source evidence. Private vehicle ownership is not private seller type. EV driving range is not odometer mileage. Preserve conflicts instead of guessing corrected values.
 - Use psycopg for PostgreSQL. Load local secrets from `.env`; environment variables take precedence.
 - Never print connection strings, API keys, bot tokens, environment contents or raw HTTP exceptions. Never commit `.env`, browser captures or contact exports.
 - Telegram sends must be explicitly requested with a CLI flag or by the user. Do not repeat the connection-test message unintentionally.

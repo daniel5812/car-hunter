@@ -29,6 +29,8 @@ def input_payload(listing):
     data = listing.to_dict()
     data.pop("contact", None)
     data.pop("evidence", None)
+    if listing.evidence.get("conflicts"):
+        data["source_conflicts"] = listing.evidence["conflicts"]
     if data.get("description"):
         data["description"] = re.sub(r"(?:\+972[-\s]?|0)(?:5\d|[23489])[-\s]?\d{3}[-\s]?\d{4}", "[contact omitted]", data["description"])
     profile = json.loads((ROOT / "search_profile.json").read_text(encoding="utf-8"))
