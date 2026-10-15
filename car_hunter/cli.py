@@ -36,6 +36,11 @@ def main():
     scan.add_argument("--demo-notification", action="store_true", help="One real-ad demo, deduplicated in Neon, even if fit is unverified")
     ingest = commands.add_parser("ingest", help="Save verified normalized JSON ads; no inferred fields")
     ingest.add_argument("file", type=Path)
+    process = commands.add_parser("process", help="Process verified normalized JSON ads through the existing pipeline")
+    process.add_argument("file", type=Path)
+    process.add_argument("--analyze", action="store_true")
+    process.add_argument("--notify", action="store_true")
+    process.add_argument("--max-notifications", type=int, choices=range(1, 6), default=3)
     commands.add_parser("stats", help="Show saved counts without exposing contacts")
     args = parser.parse_args()
     load_settings()
@@ -53,11 +58,14 @@ def main():
             blocked = sum(bool(r.get("blocked")) for r in results)
             print(f"SOURCES checked={len(results)} blocked={blocked}")
             return 2 if blocked else 0
-        elif args.command == "ingest":
+        elif args.command in {"ingest", "process"}:
             raw = json.loads(args.file.read_text(encoding="utf-8-sig"))
             if not isinstance(raw, list):
                 raise ValueError("Input must be a JSON array")
             listings = [Listing(**item) for item in raw]
+            if args.command == "process":
+                from .pipeline import process_listings
+                return process_listings(listings, args.analyze, args.notify, args.max_notifications)
             with db.connect() as conn:
                 db.init(conn)
                 inserted = sum(db.save(conn, listing) for listing in listings)
