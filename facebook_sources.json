@@ -1,0 +1,33 @@
+{
+  "selected_at": "2026-10-16",
+  "status": "selected_pending_verified_collection",
+  "marketplace_priority": "primary",
+  "groups_priority": "secondary",
+  "location_policy": "Prefer Beersheba and southern Israel using each listing's stated location; group membership does not establish vehicle location. Unknown locations remain unknown.",
+  "groups": [
+    {
+      "id": "1779920948931494",
+      "name": "אוטושבע - לוח הרכב של באר שבע והסביבה",
+      "url": "https://www.facebook.com/groups/1779920948931494/",
+      "priority": 1
+    },
+    {
+      "id": "1185610219108450",
+      "name": "רכבים יד שנייה באר שבע",
+      "url": "https://www.facebook.com/groups/1185610219108450/",
+      "priority": 1
+    },
+    {
+      "id": "374587732740843",
+      "name": "מוכרים אותי - לוח הרכב הקבוצה הרשמית באר שבע 😁",
+      "url": "https://www.facebook.com/groups/374587732740843/",
+      "priority": 2
+    },
+    {
+      "id": "582801289766223",
+      "name": "רכבים למכירה בדרום .יד 2",
+      "url": "https://www.facebook.com/groups/582801289766223/",
+      "priority": 2
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 from dataclasses import asdict, dataclass, field
 from datetime import date
 from urllib.parse import urlparse
+import re
 
 
 @dataclass
@@ -27,12 +28,17 @@ class Listing:
     def __post_init__(self):
         hosts = {"yad2": {"www.yad2.co.il", "yad2.co.il"},
                  "homeless": {"www.homeless.co.il", "homeless.co.il", "m.homeless.co.il"},
-                 "zehcan": {"cars.zehcan.co.il"}}
+                 "zehcan": {"cars.zehcan.co.il"},
+                 "facebook": {"www.facebook.com", "facebook.com"}}
         parsed = urlparse(self.url)
         if self.source not in hosts or parsed.hostname not in hosts[self.source] or parsed.scheme != "https":
             raise ValueError("Listing source and HTTPS URL must match a supported source")
         if not isinstance(self.ad_id, str) or not self.ad_id.strip():
             raise ValueError("Listing must have its actual source ID")
+        if self.source == "facebook":
+            match = re.fullmatch(r"/marketplace/item/(\d+)/?", parsed.path)
+            if not match or match[1] != self.ad_id or parsed.username or parsed.password or parsed.port:
+                raise ValueError("Facebook listing URL must match its numeric Marketplace ID")
         for name in ("year", "purchase_price_ils", "mileage_km"):
             value = getattr(self, name)
             if value is not None and (type(value) is not int or value < 0):

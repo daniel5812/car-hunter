@@ -1,0 +1,35 @@
+name: Facebook dataset audit
+
+# Reads an EXISTING provider dataset. Does not start scrapers, scans or messages.
+on:
+  workflow_dispatch:
+    inputs:
+      dataset_id:
+        description: Existing Apify Marketplace dataset ID
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e .
+      - run: python -m unittest discover -s tests -v
+      - name: Check required provider credential
+        env:
+          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
+        run: python -c "import os; raise SystemExit(0 if os.getenv('APIFY_TOKEN') else 'Configure APIFY_TOKEN in repository Secrets')"
+      - name: Audit up to five existing records
+        env:
+          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
+          APIFY_DATASET_ID: ${{ inputs.dataset_id }}
+        run: python -m car_hunter.facebook_dataset --dataset-id "$APIFY_DATASET_ID" --limit 5
+      # Do not upload datasets/captures to this public repository's artifacts.

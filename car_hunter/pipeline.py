@@ -42,6 +42,16 @@ def run(limit=9, analyze=False, notify=False, max_notifications=3, demo=False):
     if (notify or demo) and not analyze:
         raise ValueError("Notifications require --analyze")
     listings, collection_failures = collect(limit)
+    return process_listings(listings, analyze, notify, max_notifications, demo, collection_failures)
+
+
+def process_listings(listings, analyze=False, notify=False, max_notifications=3, demo=False, collection_failures=0):
+    """Process already normalized listings, independently of their collection transport."""
+    if (notify or demo) and not analyze:
+        raise ValueError("Notifications require --analyze")
+    if type(max_notifications) is not int or not 1 <= max_notifications <= 5:
+        raise ValueError("max_notifications must be between 1 and 5")
+    listings = list(listings)
     listings.sort(key=lambda item: (item.over_budget is True, -(item.year or 0)))
     counts = {"collected": len(listings), "inserted": 0, "updated": 0, "analyzed": 0,
               "cached": 0, "notified": 0, "failed": collection_failures}
@@ -53,7 +63,7 @@ def run(limit=9, analyze=False, notify=False, max_notifications=3, demo=False):
         if not locked:
             raise RuntimeError("Another car-hunter scan owns the database lock")
         try:
-            demo_sent = conn.execute("SELECT EXISTS(SELECT 1 FROM car_hunter_listings WHERE source='zehcan' AND assessment->>'demo_notified'='true')").fetchone()[0]
+            demo_sent = conn.execute("SELECT EXISTS(SELECT 1 FROM car_hunter_listings WHERE assessment->>'demo_notified'='true')").fetchone()[0]
             conn.commit()
             for listing in listings:
                 try:
@@ -75,7 +85,7 @@ def run(limit=9, analyze=False, notify=False, max_notifications=3, demo=False):
                         db.store_assessment(conn, listing, assessment)
                         conn.commit()
                         counts["analyzed"] += 1
-                    print(f"DEEPSEEK zehcan/{listing.ad_id}: score={assessment['score']} status={assessment['status']}", flush=True)
+                    print(f"DEEPSEEK {listing.source}/{listing.ad_id}: score={assessment['score']} status={assessment['status']}", flush=True)
                     unpublished = not old or old[1] is None
                     wants_demo = demo and not demo_sent
                     wants_regular = notify and unpublished and notification_allowed(listing, assessment)
@@ -89,17 +99,17 @@ def run(limit=9, analyze=False, notify=False, max_notifications=3, demo=False):
                             db.mark_notified(conn, listing)
                         conn.commit()
                         counts["notified"] += 1
-                        print(f"TELEGRAM zehcan/{listing.ad_id}: ok message_id={message_id} demo={wants_demo}", flush=True)
+                        print(f"TELEGRAM {listing.source}/{listing.ad_id}: ok message_id={message_id} demo={wants_demo}", flush=True)
                 except Exception as exc:
                     conn.rollback()
                     counts["failed"] += 1
                     if isinstance(exc, ServiceError):
                         print(f"SERVICE: {exc}", flush=True)
-                    print(f"PIPELINE zehcan/{listing.ad_id}: failed ({type(exc).__name__}); secrets suppressed", flush=True)
+                    print(f"PIPELINE {listing.source}/{listing.ad_id}: failed ({type(exc).__name__}); secrets suppressed", flush=True)
         finally:
             conn.execute("SELECT pg_advisory_unlock(%s)", (587240915,))
             conn.commit()
-        rows = conn.execute("SELECT count(*) FROM car_hunter_listings WHERE source='zehcan'").fetchone()[0]
-        print(f"DATABASE zehcan rows={rows}", flush=True)
+        rows = conn.execute("SELECT count(*) FROM car_hunter_listings").fetchone()[0]
+        print(f"DATABASE total rows={rows}", flush=True)
     print("PIPELINE " + " ".join(f"{key}={value}" for key, value in counts.items()), flush=True)
     return 1 if counts["failed"] else 0
